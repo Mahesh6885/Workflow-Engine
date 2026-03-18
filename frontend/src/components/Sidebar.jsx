@@ -23,9 +23,10 @@ import {
 import api from '../api';
 import { useNavigate } from 'react-router-dom';
 
-function Sidebar({ onCreateRequest }) {
+function Sidebar() {
   const { user, logout } = useAuthStore();
   const isAdmin = user?.role === 'admin';
+  const navigate = useNavigate();
 
   const adminTabs = [
     { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
@@ -41,15 +42,17 @@ function Sidebar({ onCreateRequest }) {
 
   const userTabs = [
     { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
-    { label: 'Create Request', icon: Send, path: '/create-request', action: 'create-request' },
     { label: 'My Requests', icon: FilePlus, path: '/my-requests' },
     { label: 'My Tasks', icon: Clock, path: '/my-tasks' },
     { label: 'Notifications', icon: Bell, path: '/notifications' },
     { label: 'Profile', icon: UserIcon, path: '/profile' },
   ];
 
+  const handleCreateRequest = () => {
+    navigate('/create-request');
+  };
+
   const [recentWorkflows, setRecentWorkflows] = React.useState([]);
-  const navigate = useNavigate();
 
   React.useEffect(() => {
     if (isAdmin) {
@@ -85,46 +88,40 @@ function Sidebar({ onCreateRequest }) {
             Main Navigation
           </p>
           <nav className="flex flex-col gap-1">
+            {/* Create Request Button for All Users */}
+            <button
+              onClick={handleCreateRequest}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 font-medium group text-[13.5px] bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 mb-2"
+            >
+              <Send size={18} className="text-primary" />
+              <span className="flex-1">Create Request</span>
+            </button>
             {tabs.map((tab) => (
-              tab.action === 'create-request' ? (
-                <button
-                  key={tab.path}
-                  onClick={() => window.dispatchEvent(new CustomEvent('openCreateRequest'))}
-                  className={clsx(
-                    'flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 font-medium group text-[13.5px]',
-                    'text-textMuted hover:bg-white/5 hover:text-white border border-transparent'
-                  )}
-                >
-                  <tab.icon size={18} className="text-white/60 group-hover:text-white transition-transform group-hover:scale-110" />
-                  <span className="flex-1">{tab.label}</span>
-                </button>
-              ) : (
-                <NavLink
-                  key={tab.path}
-                  to={tab.path}
-                  className={({ isActive }) => clsx(
-                    'flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 font-medium group text-[13.5px]',
-                    isActive
-                      ? 'bg-primary/10 text-primary border border-primary/20 shadow-sm shadow-primary/5'
-                      : 'text-textMuted hover:bg-white/5 hover:text-white border border-transparent'
-                  )}
-                >
-                  <tab.icon size={18} className={clsx("transition-transform group-hover:scale-110", isAdmin ? "text-primary/70 group-hover:text-primary" : "text-white/60 group-hover:text-white")} />
-                  <span className="flex-1">{tab.label}</span>
-                  {tab.label === 'Workflows' && isAdmin && (
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        navigate('/workflows/build/new');
-                      }}
-                      className="p-1 hover:bg-primary/20 rounded-md text-primary opacity-0 group-hover:opacity-100 transition-opacity"
-                      title="Create New Workflow"
-                    >
-                      <Plus size={14} strokeWidth={3} />
-                    </button>
-                  )}
-                </NavLink>
-              )
+              <NavLink
+                key={tab.path}
+                to={tab.path}
+                className={({ isActive }) => clsx(
+                  'flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 font-medium group text-[13.5px]',
+                  isActive
+                    ? 'bg-primary/10 text-primary border border-primary/20 shadow-sm shadow-primary/5'
+                    : 'text-textMuted hover:bg-white/5 hover:text-white border border-transparent'
+                )}
+              >
+                <tab.icon size={18} className={clsx("transition-transform group-hover:scale-110", isAdmin ? "text-primary/70 group-hover:text-primary" : "text-white/60 group-hover:text-white")} />
+                <span className="flex-1">{tab.label}</span>
+                {tab.label === 'Workflows' && isAdmin && (
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigate('/workflows/build/new');
+                    }}
+                    className="p-1 hover:bg-primary/20 rounded-md text-primary opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="Create New Workflow"
+                  >
+                    <Plus size={14} strokeWidth={3} />
+                  </button>
+                )}
+              </NavLink>
             ))}
           </nav>
         </div>

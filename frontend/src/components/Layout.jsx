@@ -1,19 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
-import CreateRequestModal from './CreateRequestModal';
-import { Background, useReactFlow } from '@xyflow/react'; // Just decorative dots
+import { Background } from '@xyflow/react'; // Just decorative dots
 
 function Layout({ children }) {
-  const [showCreateRequest, setShowCreateRequest] = useState(false);
-
-  useEffect(() => {
-    // Listen for create request event from Sidebar
-    const handleOpenCreateRequest = () => setShowCreateRequest(true);
-    window.addEventListener('openCreateRequest', handleOpenCreateRequest);
-    return () => window.removeEventListener('openCreateRequest', handleOpenCreateRequest);
-  }, []);
-
   return (
     <div className="flex h-screen w-screen bg-background overflow-hidden relative">
       <Sidebar />
@@ -31,12 +21,6 @@ function Layout({ children }) {
           </div>
         </main>
       </div>
-
-      {/* Create Request Modal */}
-      <CreateRequestModal
-        isOpen={showCreateRequest}
-        onClose={() => setShowCreateRequest(false)}
-      />
     </div>
   );
 }

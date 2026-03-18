@@ -38,6 +38,26 @@ class Workflow(SoftDeleteModel):
     tags = models.JSONField(default=list, blank=True)
     icon = models.CharField(max_length=50, default='workflow', blank=True)
     color = models.CharField(max_length=7, default='#6366f1', blank=True)
+    
+    # Request type fields
+    request_name = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text='Display name for request type (e.g., "Expense Request")'
+    )
+    is_public = models.BooleanField(
+        default=False,
+        help_text='Make this workflow available as a request type for users'
+    )
+    is_active = models.BooleanField(
+        default=True,
+        help_text='Enable/disable this request type'
+    )
+    form_schema = models.JSONField(
+        default=list,
+        blank=True,
+        help_text='Form fields configuration for request type. Example: [{"name": "amount", "type": "number", "label": "Amount", "required": true}]'
+    )
 
     # The currently active (published) version
     active_version = models.ForeignKey(

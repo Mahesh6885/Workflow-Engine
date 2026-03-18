@@ -94,6 +94,7 @@ class WorkflowListSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'description', 'category', 'status',
             'tags', 'icon', 'color',
+            'request_name', 'is_public', 'is_active', 'form_schema',
             'step_count', 'version_count', 'created_by_name', 'can_execute',
             'created_at', 'updated_at',
         ]
@@ -136,6 +137,7 @@ class WorkflowDetailSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'description', 'category', 'status',
             'tags', 'icon', 'color',
+            'request_name', 'is_public', 'is_active', 'form_schema',
             'active_version', 'active_version_detail', 'versions',
             'created_by', 'created_by_detail',
             'created_at', 'updated_at',
@@ -146,4 +148,4 @@ class WorkflowDetailSerializer(serializers.ModelSerializer):
 class WorkflowCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Workflow
-        fields = ['name', 'description', 'category', 'tags', 'icon', 'color']
+        fields = ['name', 'description', 'category', 'tags', 'icon', 'color', 'request_name', 'is_public', 'is_active', 'form_schema']

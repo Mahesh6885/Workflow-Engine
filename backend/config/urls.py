@@ -14,6 +14,7 @@ from drf_spectacular.views import (
 api_v1_patterns = [
     path('auth/', include('apps.authentication.urls')),
     path('workflows/', include('apps.workflows.urls')),
+    path('request-types/', include('apps.request_types.urls')),
     path('executions/', include('apps.executions.urls')),
     path('approvals/', include('apps.approvals.urls')),
     path('notifications/', include('apps.notifications.urls')),

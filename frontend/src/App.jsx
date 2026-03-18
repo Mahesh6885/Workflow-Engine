@@ -13,6 +13,7 @@ import Settings from './pages/Settings';
 import MyTasks from './pages/MyTasks';
 import MyRequests from './pages/MyRequests';
 import Profile from './pages/Profile';
+import CreateRequestPage from './pages/CreateRequestPage';
 import Layout from './components/Layout';
 import { Toaster } from 'react-hot-toast';
 import { useAuthStore } from './store/authStore';
@@ -78,6 +79,7 @@ function App() {
                   </RoleRoute>
                 } />
 
+                <Route path="/create-request" element={<CreateRequestPage />} />
                 <Route path="/approvals" element={<ApprovalCenter />} />
                 <Route path="/my-tasks" element={<MyTasks />} />
                 <Route path="/my-requests" element={<MyRequests />} />

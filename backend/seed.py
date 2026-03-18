@@ -68,41 +68,88 @@ standard_user.save()
 # 3. Create Diverse Workflows
 workflow_templates = [
     {
-        'name': 'Employee Onboarding Process',
+        'name': 'Expense Reimbursement Request',
+        'request_name': 'Expense Request',
+        'is_public': True,
+        'category': 'Finance',
+        'desc': 'Submit and track expense reimbursement requests.',
+        'icon': 'Receipt',
+        'color': '#10b981',
+        'form_schema': [
+            {'name': 'amount', 'type': 'number', 'label': 'Amount', 'required': True, 'placeholder': 'Enter amount'},
+            {'name': 'description', 'type': 'textarea', 'label': 'Description', 'required': True, 'placeholder': 'Describe the expense'},
+            {'name': 'category', 'type': 'select', 'label': 'Category', 'required': True, 'options': ['Travel', 'Meals', 'Equipment', 'Other']},
+        ],
+        'steps': [
+            {'name': 'Submit Expense Details', 'type': 'task', 'role': '', 'fields': [
+                {'name': 'amount', 'label': 'Amount', 'type': 'number', 'required': True},
+                {'name': 'description', 'label': 'Description', 'type': 'textarea', 'required': True},
+                {'name': 'category', 'label': 'Category', 'type': 'select', 'options': ['Travel', 'Meals', 'Equipment', 'Other'], 'required': True},
+            ]},
+            {'name': 'Manager Approval', 'type': 'approval', 'role': 'manager'},
+            {'name': 'Finance Review', 'type': 'approval', 'role': 'finance'},
+        ]
+    },
+    {
+        'name': 'Leave Request',
+        'request_name': 'Leave Request',
+        'is_public': True,
+        'category': 'Human Resources',
+        'desc': 'Request time off or vacation days.',
+        'icon': 'Calendar',
+        'color': '#3b82f6',
+        'form_schema': [
+            {'name': 'start_date', 'type': 'date', 'label': 'Start Date', 'required': True},
+            {'name': 'end_date', 'type': 'date', 'label': 'End Date', 'required': True},
+            {'name': 'reason', 'type': 'textarea', 'label': 'Reason', 'required': False, 'placeholder': 'Reason for leave'},
+        ],
+        'steps': [
+            {'name': 'Leave Details', 'type': 'task', 'role': '', 'fields': [
+                {'name': 'start_date', 'label': 'Start Date', 'type': 'date', 'required': True},
+                {'name': 'end_date', 'label': 'End Date', 'type': 'date', 'required': True},
+                {'name': 'reason', 'label': 'Reason', 'type': 'textarea', 'required': False},
+            ]},
+            {'name': 'Manager Approval', 'type': 'approval', 'role': 'manager'},
+        ]
+    },
+    {
+        'name': 'Employee Onboarding Request',
+        'request_name': 'Onboarding Request',
+        'is_public': True,
         'category': 'Human Resources',
         'desc': 'End-to-end orchestration for new hire logistics.',
         'icon': 'Users',
         'color': '#6366f1',
+        'form_schema': [
+            {'name': 'employee_name', 'type': 'text', 'label': 'Employee Name', 'required': True, 'placeholder': 'Full name of new employee'},
+            {'name': 'department', 'type': 'text', 'label': 'Department', 'required': True, 'placeholder': 'Department name'},
+            {'name': 'start_date', 'type': 'date', 'label': 'Start Date', 'required': True},
+        ],
         'steps': [
-            {'name': 'Identity Verification', 'type': 'task', 'role': ''},
+            {'name': 'Identity Verification', 'type': 'task', 'role': '', 'fields': [
+                {'name': 'employee_name', 'label': 'Employee Name', 'type': 'text', 'required': True},
+                {'name': 'department', 'label': 'Department', 'type': 'text', 'required': True},
+                {'name': 'start_date', 'label': 'Start Date', 'type': 'date', 'required': True},
+            ]},
             {'name': 'Manager HR Approval', 'type': 'approval', 'role': 'manager'},
             {'name': 'Grant System Permissions', 'type': 'task', 'role': ''},
         ]
     },
     {
         'name': 'Infrastructure Deployment',
+        'request_name': 'Infrastructure Request',
+        'is_public': False,
         'category': 'DevOps',
         'desc': 'Automated AWS production stack provisioning.',
         'icon': 'Cloud',
         'color': '#f59e0b',
+        'form_schema': [],
         'steps': [
             {'name': 'Scan Security Rules', 'type': 'task', 'role': ''},
             {'name': 'Lead DevOps Approval', 'type': 'approval', 'role': 'manager'},
             {'name': 'Apply Terraform Plan', 'type': 'task', 'role': ''},
         ]
     },
-    {
-        'name': 'Capital Expenditure Flow',
-        'category': 'Finance',
-        'desc': 'Multi-level authorization for departmental spending.',
-        'icon': 'DollarSign',
-        'color': '#10b981',
-        'steps': [
-            {'name': 'Quote Evaluation', 'type': 'task', 'role': ''},
-            {'name': 'Departmental Sync', 'type': 'task', 'role': ''},
-            {'name': 'CFO Authorization', 'type': 'approval', 'role': 'ceo'},
-        ]
-    }
 ]
 
 created_versions = []
@@ -113,8 +160,15 @@ for data in workflow_templates:
         'category': data['category'],
         'description': data['desc'],
         'icon': data['icon'],
-        'color': data['color']
+        'color': data['color'],
+        'request_name': data.get('request_name', ''),
     }, admin)
+    
+    # Set is_public, is_active, and form_schema flags
+    wf.is_public = data.get('is_public', False)
+    wf.is_active = True
+    wf.form_schema = data.get('form_schema', [])
+    wf.save()
     
     for i, s_data in enumerate(data['steps']):
         WorkflowService.add_step(wf.id, {
@@ -126,7 +180,7 @@ for data in workflow_templates:
     
     version = WorkflowService.publish_workflow(wf.id, admin)
     created_versions.append(version)
-    print(f"Workflow Ready: {wf.name}")
+    print(f"Workflow Ready: {wf.name} (Public: {wf.is_public})")
 
 # 4. Create Executions & History
 print("Simulating Enterprise Execution History...")

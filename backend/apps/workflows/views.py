@@ -33,17 +33,23 @@ class WorkflowViewSet(viewsets.ModelViewSet):
     """
     pagination_class = StandardResultsPagination
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ['status', 'category']
+    filterset_fields = ['status', 'category', 'is_active', 'is_public']
     search_fields = ['name', 'description', 'tags']
     ordering_fields = ['created_at', 'name', 'status']
 
     def get_queryset(self):
-        return (
+        queryset = (
             Workflow.objects
             .select_related('active_version', 'created_by')
             .prefetch_related('versions')
-            .all()
         )
+        
+        # If not admin, only show active and public workflows
+        user = self.request.user
+        if user.is_authenticated and user.role != 'admin':
+            queryset = queryset.filter(is_active=True, is_public=True)
+            
+        return queryset.all()
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -51,6 +57,15 @@ class WorkflowViewSet(viewsets.ModelViewSet):
         if self.action in ['create']:
             return WorkflowCreateSerializer
         return WorkflowDetailSerializer
+
+    def paginate_queryset(self, queryset):
+        """
+        Skip pagination if 'nopage' is set in query params.
+        """
+        if self.request.query_params.get('nopage') == 'true':
+            return None
+        return super().paginate_queryset(queryset)
+
 
     def get_permissions(self):
         # Admin-only for structural changes
