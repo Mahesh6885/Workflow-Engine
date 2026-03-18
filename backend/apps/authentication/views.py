@@ -2,12 +2,13 @@
 Authentication Views
 """
 import logging
-from rest_framework import generics, status, permissions
+from rest_framework import generics, status, permissions, viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
 from apps.core.audit import AuditLog
+from apps.core.permissions import IsAdmin
 from .models import User
 from .serializers import (
     UserSerializer,
@@ -31,8 +32,8 @@ class CustomTokenObtainPairView(TokenObtainPairView):
                 action=AuditLog.ActionType.LOGIN,
                 actor=user,
                 description=f'User logged in: {user.email}',
-                ip_address=request.audit_ip,
-                user_agent=request.audit_user_agent,
+                ip_address=getattr(request, 'audit_ip', '0.0.0.0'),
+                user_agent=getattr(request, 'audit_user_agent', 'Unknown'),
             )
         return response
 
@@ -57,25 +58,39 @@ class LogoutView(APIView):
             return Response({'success': False, 'error': str(e)}, status=400)
 
 
-class UserRegisterView(generics.CreateAPIView):
-    """Register a new user (admin only)."""
-    serializer_class = UserCreateSerializer
-    permission_classes = [permissions.IsAdminUser]
+class UserViewSet(viewsets.ModelViewSet):
+    """Admin-only user management."""
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    permission_classes = [permissions.IsAuthenticated, IsAdmin]
 
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return UserCreateSerializer
+        return UserSerializer
+
+    def perform_create(self, serializer):
         user = serializer.save()
         AuditLog.log(
             action=AuditLog.ActionType.CREATE,
-            actor=request.user,
+            actor=self.request.user,
             instance=user,
-            description=f'User created: {user.email}',
+            description=f'User created by admin: {user.email}',
         )
-        return Response(
-            {'success': True, 'data': UserSerializer(user).data},
-            status=status.HTTP_201_CREATED,
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        user_email = instance.email
+        if instance == request.user:
+            return Response({'error': 'Cannot delete your own account'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        self.perform_destroy(instance)
+        AuditLog.log(
+            action=AuditLog.ActionType.DELETE,
+            actor=request.user,
+            description=f'User deleted by admin: {user_email}',
         )
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class UserProfileView(generics.RetrieveUpdateAPIView):
@@ -105,10 +120,3 @@ class ChangePasswordView(APIView):
         request.user.set_password(serializer.validated_data['new_password'])
         request.user.save()
         return Response({'success': True, 'message': 'Password updated successfully.'})
-
-
-class UserListView(generics.ListAPIView):
-    """List all users — admin access."""
-    serializer_class = UserSerializer
-    permission_classes = [permissions.IsAdminUser]
-    queryset = User.objects.all()

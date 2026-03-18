@@ -9,7 +9,11 @@ from .views import WorkflowViewSet, WorkflowStepViewSet
 router = DefaultRouter()
 router.register(r'', WorkflowViewSet, basename='workflow')
 
-# Use standard approach for nested steps
+# Nested router for steps: /workflows/{workflow_id}/steps/
+workflow_router = NestedDefaultRouter(router, r'', lookup='workflow')
+workflow_router.register(r'steps', WorkflowStepViewSet, basename='workflow-steps')
+
 urlpatterns = [
     path('', include(router.urls)),
+    path('', include(workflow_router.urls)),
 ]

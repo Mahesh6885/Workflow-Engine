@@ -111,3 +111,22 @@ class StatusModel(models.Model):
 
     class Meta:
         abstract = True
+
+
+class SystemSetting(models.Model):
+    """
+    Key-value store for system-wide settings.
+    Used for configurable platform parameters.
+    """
+    key = models.CharField(max_length=100, unique=True, db_index=True)
+    value = models.JSONField(default=dict)
+    description = models.TextField(blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'system_settings'
+        verbose_name = 'System Setting'
+        verbose_name_plural = 'System Settings'
+
+    def __str__(self):
+        return self.key

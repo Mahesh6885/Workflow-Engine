@@ -1,8 +1,8 @@
 import { useAuthStore } from '../store/authStore';
-import { Bell, Search } from 'lucide-react';
+import { Bell, Search, LogOut } from 'lucide-react';
 
 function Topbar() {
-  const { user } = useAuthStore();
+  const { user, logout } = useAuthStore();
 
   return (
     <header className="h-16 w-full glass-panel !rounded-none !border-x-0 !border-t-0 flex items-center justify-between px-6 sticky top-0 z-10">
@@ -23,16 +23,29 @@ function Topbar() {
 
         <div className="h-8 w-[1px] bg-white/10 mx-2"></div>
 
-        <div className="flex items-center gap-3 cursor-pointer group">
-          <div className="text-right">
-            <p className="text-sm font-semibold text-white group-hover:text-primary transition-colors">{user?.full_name}</p>
-            <p className="text-xs text-textMuted capitalize">{user?.role?.replace('_', ' ')}</p>
+        <div className="flex items-center gap-3 group px-2 py-1 rounded-lg hover:bg-white/5 transition-colors">
+          <div className="text-right hidden sm:block">
+            <p className="text-sm font-semibold text-white">{user?.full_name || 'Admin User'}</p>
+            <p className="text-[10px] text-textMuted uppercase tracking-wider font-bold opacity-70 leading-none mt-1">
+              {user?.role?.replace('_', ' ')}
+            </p>
           </div>
-          <img 
-            src={user?.avatar} 
-            alt="avatar" 
-            className="w-9 h-9 rounded-full ring-2 ring-primary/20 group-hover:ring-primary/50 transition-all object-cover"
-          />
+          <div className="relative">
+            <img 
+                src={user?.avatar || `https://ui-avatars.com/api/?name=${user?.full_name || 'Admin'}&background=6366f1&color=fff`} 
+                alt="avatar" 
+                className="w-10 h-10 rounded-full ring-2 ring-primary/20 group-hover:ring-primary/50 transition-all object-cover"
+            />
+            <div className="absolute bottom-0 right-0 w-3 h-3 bg-success rounded-full border-2 border-[#0F172A]"></div>
+          </div>
+          
+          <button 
+            onClick={() => logout()}
+            className="ml-2 p-2 rounded-lg text-slate-400 hover:text-danger hover:bg-danger/10 transition-all"
+            title="Log Out"
+          >
+            <LogOut size={18} />
+          </button>
         </div>
       </div>
     </header>

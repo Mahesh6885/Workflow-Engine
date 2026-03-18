@@ -1,27 +1,38 @@
 """
-Core Permissions — Role-Based Access Control
+Core Permissions — Simplified RBAC for Enterprise Standards
 """
 from rest_framework.permissions import BasePermission
 
 
-class IsWorkflowAdmin(BasePermission):
-    """Only users with role 'admin' or 'workflow_admin' can manage workflows."""
+class IsAdmin(BasePermission):
+    """Full platform access."""
     def has_permission(self, request, view):
         return (
-            request.user.is_authenticated and
-            request.user.role in ['admin', 'workflow_admin']
+            request.user and 
+            request.user.is_authenticated and 
+            request.user.role == 'admin'
         )
 
 
-class IsApprover(BasePermission):
-    """User must be designated as an approver."""
+class IsStandardUser(BasePermission):
+    """Basic access for workflow participants."""
     def has_permission(self, request, view):
-        return request.user.is_authenticated and request.user.role in ['admin', 'approver', 'manager']
+        return (
+            request.user and 
+            request.user.is_authenticated and 
+            request.user.role == 'user'
+        )
 
 
 class IsOwnerOrAdmin(BasePermission):
     """Object-level permission: owner or admin."""
     def has_object_permission(self, request, view, obj):
+        if not request.user or not request.user.is_authenticated:
+            return False
+            
         if request.user.role == 'admin':
             return True
-        return getattr(obj, 'created_by', None) == request.user
+        
+        # Check if object has 'created_by', 'user', or 'owner' field
+        owner = getattr(obj, 'created_by', getattr(obj, 'user', getattr(obj, 'owner', None)))
+        return owner == request.user

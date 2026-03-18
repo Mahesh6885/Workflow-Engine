@@ -57,11 +57,16 @@ class StepExecutor:
         """
         Approval step — create an Approval record and pause execution.
         The actual step_exec stays in WAITING until the approval is resolved.
+        
+        Supports rejection_step for rejection paths.
         """
         from apps.approvals.services import ApprovalService
         logger.info(f"  [APPROVAL] Creating approval for: {step.name}")
         ApprovalService.create_approval(step, step_exec, context)
-        return {'status': 'waiting_for_approval'}
+        return {
+            'status': 'waiting_for_approval',
+            'rejection_step_id': str(step.rejection_step_id) if step.rejection_step_id else None
+        }
 
     @staticmethod
     def _handle_notification(step, context, step_exec) -> dict:
@@ -156,13 +161,30 @@ class WorkflowEngine:
         cls._emit_ws_event(execution, 'execution_started')
 
         try:
-            steps = execution.workflow_version.steps.prefetch_related(
+            steps = list(execution.workflow_version.steps.prefetch_related(
                 'conditions', 'rules',
-            ).order_by('order')
+            ).order_by('order'))
 
             context = execution.context.copy()
+            
+            # Determine starting index
+            current_idx = 0
+            if execution.current_step_id:
+                for i, s in enumerate(steps):
+                    if s.id == execution.current_step_id:
+                        # If we were WAITING on an approval, we just finished it.
+                        # We should evaluate rules of THIS step now, then move on.
+                        # Wait, _execute_step already handles rule evaluation.
+                        # If we resume, we should probably start AFTER the current_step 
+                        # OR re-execute it if it was waiting.
+                        
+                        # Re-executing a WAITING step will skip the actual execution logic 
+                        # because it was already done, but it will evaluate rules.
+                        current_idx = i
+                        break
 
-            for step in steps:
+            while current_idx < len(steps):
+                step = steps[current_idx]
                 result = cls._execute_step(step, execution, context)
 
                 if result == 'WAITING':
@@ -175,13 +197,23 @@ class WorkflowEngine:
                     logger.info(f"⏸ Execution {execution_id} paused at {step.name}")
                     return execution
 
-                if result == 'TERMINATE':
+                if result == 'TERMINATE' or result == 'COMPLETE':
                     break
 
-                # Check if next step was overridden by a rule
+                # Handle Branching
                 if isinstance(result, dict) and result.get('_next_step_id'):
-                    # TODO: handle branching to non-sequential step
-                    pass
+                    next_id = result['_next_step_id']
+                    if next_id:
+                        found = False
+                        for i, s in enumerate(steps):
+                            if str(s.id) == next_id:
+                                current_idx = i
+                                found = True
+                                break
+                        if found:
+                            continue # Jump to the found index
+
+                current_idx += 1
 
             # Mark complete
             execution.status = WorkflowExecution.Status.COMPLETED
@@ -257,8 +289,12 @@ class WorkflowEngine:
                 # Approval step → pause execution
                 if output.get('status') == 'waiting_for_approval':
                     step_exec.status = StepExecution.Status.WAITING
-                    step_exec.save(update_fields=['status'])
-                    return 'WAITING'
+                    step_exec.output_data = output
+                    step_exec.save(update_fields=['status', 'output_data'])
+                    return {
+                        'WAITING': True,
+                        'rejection_step_id': output.get('rejection_step_id')
+                    }
 
                 break  # Success — exit retry loop
 
@@ -332,6 +368,10 @@ class WorkflowEngine:
             except Exception as e:
                 logger.warning(f"    Rule evaluation error for {rule}: {e}")
 
+        # Check for linear flow (next_step)
+        if step.next_step_id:
+            return {'_next_step_id': str(step.next_step_id)}
+
         # Check for end step
         if step.step_type == WorkflowStep.StepType.END:
             return 'TERMINATE'
@@ -379,10 +419,14 @@ class WorkflowEngine:
         """
         Dry-run the workflow without persisting any execution records.
         Returns a trace of which steps would be taken and why.
+        
+        Also supports rejection paths via rejection_step field.
         """
         trace = []
         simulated_context = context.copy()
-        steps = workflow_version.steps.prefetch_related('conditions', 'rules').order_by('order')
+        steps = list(workflow_version.steps.prefetch_related('conditions', 'rules').order_by('order'))
+        step_by_id = {str(s.id): s for s in steps}
+        rejected = False  # Track if we're on rejection path
 
         for step in steps:
             entry = {
@@ -392,6 +436,7 @@ class WorkflowEngine:
                 'order': step.order,
                 'decision': '',
                 'matched_rule': None,
+                'path': 'rejection' if rejected else 'main',
             }
 
             # Evaluate conditions
@@ -419,6 +464,20 @@ class WorkflowEngine:
                     pass
 
             trace.append(entry)
+
+            # Handle rejection path
+            if rejected and step.rejection_step_id:
+                # Follow rejection path
+                next_step = step_by_id.get(str(step.rejection_step_id))
+                if next_step:
+                    rejected = False  # Reset after moving to rejection step
+                    continue
+
+            # Handle step's next_step (linear flow)
+            if step.next_step_id:
+                next_step = step_by_id.get(str(step.next_step_id))
+                if next_step:
+                    continue
 
             if step.step_type == WorkflowStep.StepType.END:
                 break

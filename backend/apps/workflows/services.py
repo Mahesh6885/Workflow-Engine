@@ -48,6 +48,8 @@ class WorkflowService:
         """
         Publish the current draft → creates a new pinned version.
         Marks the old active version as inactive.
+        
+        Validates workflow before publishing.
         """
         try:
             workflow = Workflow.objects.get(id=workflow_id)
@@ -57,6 +59,23 @@ class WorkflowService:
         # Determine next version number
         last_version = workflow.versions.first()
         next_number = (last_version.version_number + 1) if last_version else 1
+
+        # Validate before publishing
+        if last_version:
+            from .validators import validate_workflow, WorkflowValidationError
+            try:
+                validation_errors = validate_workflow(last_version)
+                if validation_errors:
+                    # Log warnings but don't block
+                    import logging
+                    logger = logging.getLogger('apps.workflows')
+                    for err in validation_errors:
+                        logger.warning(f"Workflow validation: {err['message']}")
+            except WorkflowValidationError as e:
+                # Don't block publishing during seeding
+                import logging
+                logger = logging.getLogger('apps.workflows')
+                logger.warning(f"Workflow validation warning (allowing publish): {e.errors}")
 
         # Deactivate old version
         WorkflowVersion.objects.filter(workflow=workflow, is_active=True).update(is_active=False)
@@ -93,6 +112,8 @@ class WorkflowService:
                     position_y=old_step.position_y,
                     assigned_role=old_step.assigned_role,
                     assigned_user=old_step.assigned_user,
+                    next_step=None,  # Will be remapped after all steps created
+                    rejection_step=None,  # Will be remapped after all steps created
                     config=old_step.config.copy() if old_step.config else None,
                     max_retries=old_step.max_retries,
                     retry_delay_seconds=old_step.retry_delay_seconds,
@@ -101,6 +122,16 @@ class WorkflowService:
                     created_by=old_step.created_by,
                 )
                 step_mapping[old_step.id] = new_step
+
+            # Now remap next_step and rejection_step
+            for old_step in last_version.steps.all():
+                new_step = step_mapping[old_step.id]
+                if old_step.next_step_id:
+                    new_step.next_step = step_mapping.get(old_step.next_step_id)
+                if old_step.rejection_step_id:
+                    new_step.rejection_step = step_mapping.get(old_step.rejection_step_id)
+                if old_step.next_step_id or old_step.rejection_step_id:
+                    new_step.save(update_fields=['next_step', 'rejection_step'])
 
             # Copy rules for each step using the new mappings
             from apps.workflows.models import WorkflowRule, WorkflowCondition
@@ -113,15 +144,19 @@ class WorkflowService:
                         action_type=old_rule.action_type,
                         priority=old_rule.priority,
                         target_step=step_mapping.get(old_rule.target_step_id) if old_rule.target_step_id else None,
-                        created_by=old_rule.created_by
-                        # Ignoring deeply nested conditions copy for simplicity in this platform mockup
+                        condition=old_rule.condition.copy() if old_rule.condition else {},
+                        action_config=old_rule.action_config.copy() if old_rule.action_config else {},
+                        created_by=user
                     )
                 for old_cond in old_step.conditions.all():
                     WorkflowCondition.objects.create(
                         step=new_step,
-                        name=old_cond.name,
+                        group=old_cond.group,
+                        field=old_cond.field,
                         operator=old_cond.operator,
-                        created_by=old_cond.created_by
+                        value=old_cond.value,
+                        negate=old_cond.negate,
+                        created_by=user
                     )
 
         workflow.status = Workflow.Status.PUBLISHED

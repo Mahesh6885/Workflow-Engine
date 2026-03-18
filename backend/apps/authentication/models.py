@@ -31,11 +31,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     class Role(models.TextChoices):
         ADMIN = 'admin', 'Administrator'
-        WORKFLOW_ADMIN = 'workflow_admin', 'Workflow Administrator'
-        MANAGER = 'manager', 'Manager'
-        APPROVER = 'approver', 'Approver'
-        EMPLOYEE = 'employee', 'Employee'
-        VIEWER = 'viewer', 'Viewer'
+        USER = 'user', 'Standard User'
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email = models.EmailField(unique=True, db_index=True)
@@ -44,7 +40,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     role = models.CharField(
         max_length=20,
         choices=Role.choices,
-        default=Role.EMPLOYEE,
+        default=Role.USER,
         db_index=True,
     )
     department = models.CharField(max_length=100, blank=True)
@@ -79,4 +75,4 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     @property
     def is_admin(self):
-        return self.role in [self.Role.ADMIN, self.Role.WORKFLOW_ADMIN]
+        return self.role == self.Role.ADMIN

@@ -113,6 +113,23 @@ class WorkflowStep(SoftDeleteModel):
         SCRIPT = 'script', 'Script / Automation'
         END = 'end', 'End'
 
+    # Role constants
+    ROLE_ADMIN = 'admin'
+    ROLE_USER = 'user'
+    ROLE_MANAGER = 'manager'
+    ROLE_HR = 'hr'
+    ROLE_CEO = 'ceo'
+    ROLE_FINANCE = 'finance'
+
+    ROLE_CHOICES = [
+        (ROLE_ADMIN, 'Admin'),
+        (ROLE_USER, 'User'),
+        (ROLE_MANAGER, 'Manager'),
+        (ROLE_HR, 'HR'),
+        (ROLE_CEO, 'CEO'),
+        (ROLE_FINANCE, 'Finance'),
+    ]
+
     workflow_version = models.ForeignKey(
         WorkflowVersion,
         on_delete=models.CASCADE,
@@ -132,8 +149,28 @@ class WorkflowStep(SoftDeleteModel):
     position_x = models.FloatField(default=0)
     position_y = models.FloatField(default=0)
 
+    # Simple linear flow: next step on success
+    next_step = models.ForeignKey(
+        'self',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='previous_steps',
+        help_text='Next step in linear flow (for simple workflows)'
+    )
+
+    # Rejection path: where to go when approval/condition fails
+    rejection_step = models.ForeignKey(
+        'self',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='rejected_from_steps',
+        help_text='Step to go to when rejected (for approval steps)'
+    )
+
     # Who is this step assigned to?
-    assigned_role = models.CharField(max_length=50, blank=True)
+    assigned_role = models.CharField(max_length=50, blank=True, choices=ROLE_CHOICES)
     assigned_user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True,
