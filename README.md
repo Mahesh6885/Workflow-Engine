@@ -6,7 +6,12 @@ A production-grade platform for defining, executing, and tracking dynamic workfl
 
 The **HalleyX Workflow Engine** provides a robust, scalable architecture for automating complex business processes. It allows administrators to build workflows through a dynamic builder and empowers users to submit and track requests in real-time.
 
+## 🎥 Demo
+
+Watch the demo video to see the project in action: [HalleyX Workflow Engine Demo](https://youtu.be/FBkEV_PiEvY)
+
 ## 🛠️ Technology Stack
+
 
 - **Backend**: Django REST Framework, Python 3.10+
 - **Database**: PostgreSQL (main), Redis (cache & message broker)
